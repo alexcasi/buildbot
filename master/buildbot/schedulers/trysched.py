@@ -242,13 +242,29 @@ class Try_Userpass_Perspective(pbutil.NewCredPerspective):
 
         sourcestampsetid = yield db.sourcestampsets.addSourceStampSet()
 
-        # note: no way to specify patch subdir - #1769
-        yield db.sourcestamps.addSourceStamp(
-            branch=branch, revision=revision, repository=repository,
-            project=project, patch_level=patch[0], patch_body=patch[1],
-            patch_subdir='', patch_author=who or '',
-            patch_comment=comment or '', codebase='',
-            sourcestampsetid=sourcestampsetid)
+        # add a sourcestamp for each codebase
+        for codebase, cb_info in self.scheduler.codebases.iteritems():
+            ss_repository = cb_info.get('repository', repository)
+            ss_branch = cb_info.get('branch', branch)
+            ss_revision = cb_info.get('revision', None)
+
+            d = dict(
+                codebase=codebase,
+                repository=ss_repository,
+                branch=ss_branch,
+                revision=ss_revision,
+                project=project,
+                changeids=set(),
+                sourcestampsetid=sourcestampsetid
+            )
+
+            if ss_repository == repository:
+                # note: no way to specify patch subdir - #1769
+                d.update(dict(patch_level=patch[0], patch_body=patch[1],
+                              patch_subdir='', patch_author=who or '',
+                              patch_comment=comment or '', revision=revision))
+
+            yield db.sourcestamps.addSourceStamp(**d)
 
         requested_props = Properties()
         requested_props.update(properties, "try build")
@@ -275,9 +291,9 @@ class Try_Userpass(TryBase):
     compare_attrs = ('name', 'builderNames', 'port', 'userpass', 'properties')
 
     def __init__(self, name, builderNames, port, userpass,
-                 properties={}):
+                 properties={}, **kwargs):
         TryBase.__init__(self, name=name, builderNames=builderNames,
-                         properties=properties)
+                         properties=properties, **kwargs)
         self.port = port
         self.userpass = userpass
         self.registrations = []
