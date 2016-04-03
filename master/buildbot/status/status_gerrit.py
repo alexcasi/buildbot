@@ -272,8 +272,9 @@ class GerritStatusPush(StatusReceiverMultiService, buildset.BuildSetSummaryNotif
 
     def buildStarted(self, builderName, build):
         if self.startCB is not None:
-            message = self.startCB(builderName, build, self.startArg)
-            self.sendCodeReviews(build, message)
+            result = dict(message=self.startCB(builderName, build,
+                                               self.master_status, self.startArg))
+            self.sendCodeReviews(build, result)
 
     def buildFinished(self, builderName, build, result):
         """Do the SSH gerrit verify command to the server."""
